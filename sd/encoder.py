@@ -61,5 +61,6 @@ class VAE_Encoder(nn.Sequential):
         # x: (batch_size, channel, height, width)
         # noise: (batch_size, channel, height, width)
         for module in self:
+            if getattr
               
 
