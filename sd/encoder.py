@@ -61,6 +61,27 @@ class VAE_Encoder(nn.Sequential):
         # x: (batch_size, channel, height, width)
         # noise: (batch_size, channel, height, width)
         for module in self:
-            if getattr
-              
+            if getattr(module, 'stride', None) == (2, 2):
+                # (padding_left, padding_right, padding_top, padding_bottom)
+                x = F.pad(x, (0, 1, 0, 1))
+            x = module(x)
 
+        # (batch_size, 8, height/8, width/8) -> Two tensors of size: (batch_size, 4, height/8, width/8) - represents mean and variance
+        mean, log_variance = torch.chunk(x, 2, dim=1)
+
+        # Clamp log_variance if too large/small
+        log_variance = torch.clamp(log_variance, -30, 20)
+
+        variance = log_variance.exp()
+
+        stdev = variance.sqrt()
+
+        # Sample from distribution
+        # Z = N(0, 1) -> N(mean, variance) = X
+        # X = mean + stdev * Z
+        x = mean + stdev * noise
+
+        # Scale the output by a constant (Constant from original paper)
+        x *= 0.18215
+
+        return x
