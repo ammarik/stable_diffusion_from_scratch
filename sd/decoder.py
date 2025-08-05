@@ -2,7 +2,36 @@ import torch
 
 from torch import nn
 from torch.nn import functional as F
-from decoder import VAE_AttentionBlock, VAE_Residual_Block
+
+
+class VAE_AttentionBlock(nn.Module):
+    def __init__(self, channels: int):
+        super().__init__()
+        self.groupnorm = nn.GroupNorm(32, channels)
+        self.attention = SelfAttention(1, channels)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x: (batch_size, features, height, width)
+        residue = x
+
+        n, c, h, w = x.shape # Note -> n: batch size, c: num of channels
+
+        # Self attention betweeon all the pixels of the image
+        # (batch_size, features, height, width) -> (batch_size, features, height * width)
+        x = x.view(n, c, h * w)
+        # (batch_size, features, height * width) -> (batch_size, height * width, features)
+        x = x.transpose(-1, -2)
+        # (batch_size, height * width, features) -> (batch_size, height * width, features)
+        x = self.attention(x)
+        # Transpose back: (batch_size, height * width, features) -> (batch_size, features, height * width)
+        x = x.transpose(-2, -1)
+        # Get the original shape: (batch_size, features, height * width) -> (batch_size, features, height, width)
+        x = x.view(n, c, h, w)
+
+        x += residue
+
+        return x
+
 
 class VAE_ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -35,4 +64,3 @@ class VAE_ResidualBlock(nn.Module):
         x = self.conv_2(x)
 
         return x + self.residual_layer(residue)
-
