@@ -37,7 +37,7 @@ class UNETResidualBlock(nn.Module):
         else:
             self.residual_layer = nn.Conv2d(in_channels, out_channels, kernel_size=1, padding=0)
 
-    def forward(self, feature: torch.Tensor, time):
+    def forward(self, feature: torch.Tensor, time: torch.Tensor) -> torch.Tensor:
         # feature (latent): (batch_size, in_channels, height, width)
         # time embedding: (1, 1280)
         residue = feature
@@ -61,6 +61,78 @@ class UNETResidualBlock(nn.Module):
         merged = self.conv_merged(merged)
 
         return merged + self.residual_layer(residue)
+
+
+class UNETAttentionBlock(nn.Module):
+    def __init__(self, n_heads: int, n_embed: int, d_context: int=768):
+        super().__init__()
+        channels = n_heads * n_embed
+
+        self.groupnorm = nn.GroupNorm(32, channels, eps=1e6)
+        self.conv_input = nn.Conv2d(channels, channels, kernel_size=1, padding=0)
+
+        self.layernorm_1 = nn.LayerNorm(channels)
+        self.attention_1 = SelfAttention(n_heads, channels, in_proj_bias=False)
+        self.layernorm_2 = nn.LayerNorm(channels)
+        self.attention_2 = CrossAttention(n_heads, channels, d_context, in_proj_bias=False)
+        self.layernorm_3 = nn.LayerNorm(channels)
+        self.linear_geglu_1 = nn.Linear(channels, 4 * channels * 2)
+        self.linear_geglu_2 = nn.Linear(4 * channels, channels)
+
+        self.conv_output = nn.Conv2d(channels, channels, kernel_size=1, padding=0)
+
+
+    def forward(self, x: torch.Tensor, context: torch.Tensor):
+        # x: (batch_size, features, height, width)
+        # context: (batch_size, seq_len, dim)
+
+        residue_long = x
+
+        x = self.groupnorm(x)
+
+        x = self.conv_input(x)
+
+        n, c, h, w = x.shape
+
+        # (batch_size, features, height, width) -> (batch_size, features, height * width)
+        x = x.view((n, c, h*w))
+
+        # (batch_size, features, height * width) -> (batch_size, height * width, features)
+        x = x.transpose(-1, -2)
+
+        # Normalization + Self-attention with skip connection
+        residue_short = x
+
+        x = self.layernorm_1(x)
+        x = self.attention_1(x)
+        x += residue_short
+
+        # Normalization + Cross-Attention with skip connection
+        residue_short = x
+
+        x = self.layernorm_2(x)
+        x = self.attention_2(x, context)
+        x += residue_short
+
+        # Normalization + Feedforward with GeGLU and skip connection
+        residue_short = x
+
+        x = self.layernorm_3(x)
+        x, gate = self.linear_geglu_1(x).chunk(2, dim=-1)
+        x = x * F.gelu(gate)
+
+        x = self.linear_geglu_2(x)
+
+        x += residue_short
+
+        # Back to original shape
+        # (batch_size, height * width, features) -> (batch_size, features, height * width)
+        x = x.transpose(-1, -2)
+
+        # (batch_size, features, height * width) -> (batch_size, features, height, width)
+        x = x.view((n, c, h, w))
+
+        return self.conv_output(x) + residue_long
 
 
 class Upsample(nn.Module):
