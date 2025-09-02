@@ -167,31 +167,31 @@ class UNET(nn.Module):
             # (batch_size, 4, height/8, width/8)
             SwitchSequential(nn.Conv2d(4, 320, kernel_size=3, padding=1)),
 
-            SwitchSequential(UNETResidualBLock(320, 320), UNETAttentionBlock(8, 40)),
+            SwitchSequential(UNETResidualBlock(320, 320), UNETAttentionBlock(8, 40)),
 
-            SwitchSequential(UNETResidualBLock(320, 320), UNETAttentionBlock(8,40)),
+            SwitchSequential(UNETResidualBlock(320, 320), UNETAttentionBlock(8,40)),
 
             # (batch_size, 320, height/8, width/8) -> (batch_size, 320, height/16, width/16)
             SwitchSequential(nn.Conv2d(320, 320, kernel_size=3, stride=2, padding=1)),
 
-            SwitchSequential(UNETResidualBLock(320, 640), UNETAttentionBlock(8, 80)),
+            SwitchSequential(UNETResidualBlock(320, 640), UNETAttentionBlock(8, 80)),
 
-            SwitchSequential(UNETResidualBLock(640, 640), UNETAttentionBlock(8, 80)),
+            SwitchSequential(UNETResidualBlock(640, 640), UNETAttentionBlock(8, 80)),
 
             # (batch_size, 640, height/16, width/16) -> (batch_size, 640, height/32, width/32)
             SwitchSequential(nn.Conv2d(640, 640, kernel_size=3, stride=2, padding=1)),
 
-            SwitchSequential(UNETResidualBLock(640, 1280), UNETAttentionBlock(8, 160)),
+            SwitchSequential(UNETResidualBlock(640, 1280), UNETAttentionBlock(8, 160)),
 
-            SwitchSequential(UNETResidualBLock(1280, 1280), UNETAttentionBlock(8, 160)),
+            SwitchSequential(UNETResidualBlock(1280, 1280), UNETAttentionBlock(8, 160)),
 
             # (batch_size, 1280, height/32, width/32) -> (batch_size, 1280, height/64, width/64)
             SwitchSequential(nn.Conv2d(1280, 1280, kernel_size=3, stride=2, padding=1)),
 
-            SwitchSequential(UNETResidualBLock(1280, 1280)),
+            SwitchSequential(UNETResidualBlock(1280, 1280)),
 
             # (batch_size, 1280, height/64, width/64) -> (batch_size, 1280, height/64, width/64)
-            SwitchSequential(UNETResidualBLock(1280, 1280)),
+            SwitchSequential(UNETResidualBlock(1280, 1280)),
         ])
 
         self.bottleneck = SwitchSequential(
@@ -204,15 +204,15 @@ class UNET(nn.Module):
             SwitchSequential(UNETResidualBlock(2560, 1280)),
             SwitchSequential(UNETResidualBlock(2560, 1280)),
             SwitchSequential(UNETResidualBlock(2560, 1280), Upsample(1280)),
-            SwitchSequential(UNETResidualBLock(2560, 1280), UNETAttentionBlock(8, 160)),
-            SwitchSequential(UNETResidualBLock(2560, 1280), UNETAttentionBlock(8, 160)),
-            SwitchSequential(UNETResidualBLock(1920, 1280), UNETAttentionBlock(8, 160), Upsample(1280)),
-            SwitchSequential(UNETResidualBLock(1920, 640), UNETAttentionBlock(8, 80)),
-            SwitchSequential(UNETResidualBLock(1280, 640), UNETAttentionBlock(8, 80)),
-            SwitchSequential(UNETResidualBLock(640, 640), UNETAttentionBlock(8, 80), Upsample(640)),
-            SwitchSequential(UNETResidualBLock(960, 320), UNETAttentionBlock(8, 40)),
-            SwitchSequential(UNETResidualBLock(640, 320), UNETAttentionBlock(8, 80)),
-            SwitchSequential(UNETResidualBLock(640, 320), UNETAttentionBlock(8, 40)),
+            SwitchSequential(UNETResidualBlock(2560, 1280), UNETAttentionBlock(8, 160)),
+            SwitchSequential(UNETResidualBlock(2560, 1280), UNETAttentionBlock(8, 160)),
+            SwitchSequential(UNETResidualBlock(1920, 1280), UNETAttentionBlock(8, 160), Upsample(1280)),
+            SwitchSequential(UNETResidualBlock(1920, 640), UNETAttentionBlock(8, 80)),
+            SwitchSequential(UNETResidualBlock(1280, 640), UNETAttentionBlock(8, 80)),
+            SwitchSequential(UNETResidualBlock(640, 640), UNETAttentionBlock(8, 80), Upsample(640)),
+            SwitchSequential(UNETResidualBlock(960, 320), UNETAttentionBlock(8, 40)),
+            SwitchSequential(UNETResidualBlock(640, 320), UNETAttentionBlock(8, 80)),
+            SwitchSequential(UNETResidualBlock(640, 320), UNETAttentionBlock(8, 40)),
         ])
 
 
