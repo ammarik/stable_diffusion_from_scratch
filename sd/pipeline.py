@@ -108,13 +108,52 @@ def generate(
             # Add noise to the latent representation of the image
             latents = sampler.add_noise(latents, sampler.timesteps[0]) # we will start with the maximal noise level
 
-
-
-
-
-
-
-
+            to_idle(encoder)
+        else:
+            # I we're doing text to image - start with a random noise
+            latents = torch.rand(latents_shape, generator=generator, device=device)
         
+        diffusion = models["diffusion"]
+        diffusion.to(device)
+
+        timesteps = tqdm(sampler.timesteps)
+        for i, timestep in enumerate(timesteps):
+            # (1, 320)
+            time_embedding = get_time_embedding(timesteps).to(device)
+
+            # (batch_size, 4, latents_height, latents_width)
+            model_input = latents
+
+            if do_cfg:
+                # We need to send the same latent with the prompt and with the negative prompt.
+                # (batch_size, 4, height, width) -> (2 * batch_size, 4, height, width)
+                model_input = model_input.repeat(2, 1, 1, 1)
+
+            # model output is the predicted noise by the unet
+            model_output = diffusion(model_input, context, time_embedding)
+
+            if do_cfg:
+                # Now we have both uncond and cond output in model_output
+                # We will split it into two separate tensors
+                output_cond, output_uncond = model_output.chunk(2)
+                # Now we combine them together. (Formula: output = w * (out_cond - out_uncond) + out_uncond)
+                model_output = cfg_scale * (output_cond - output_uncond) + output_uncond
+            
+            # Remove noise predicted by the UNET
+            latents = sampler.step(timestep, latents, model_output)
+        to_idle(diffusion)
+
+        decoder = models['decoder']
+        decoder.to(device)
+
+        images = decoder(latents)
+        to_idle(decoder)
+
+        images = rescale(images, (-1, -1), (0, 255), clamp=True)
+        # (batch_size, channel, height, width) -> (batch_size, height, width, channel)
+        images = images.permute(0, 2, 3, 1)
+        images = images.to('cpu', torch.uint8).numpy()
+
+        return images[0]        
 
         
