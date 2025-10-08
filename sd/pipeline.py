@@ -123,7 +123,7 @@ def generate(
 
             # (batch_size, 4, latents_height, latents_width)
             model_input = latents
-
+ 
             if do_cfg:
                 # We need to send the same latent with the prompt and with the negative prompt.
                 # (batch_size, 4, height, width) -> (2 * batch_size, 4, height, width)
@@ -154,6 +154,27 @@ def generate(
         images = images.permute(0, 2, 3, 1)
         images = images.to('cpu', torch.uint8).numpy()
 
-        return images[0]        
+        return images[0]
 
-        
+def rescale(x, old_range, new_range, clamp):
+    old_min, old_max = old_range
+    new_min, new_max = new_range
+
+    x -= old_min
+    x *= (new_max - new_min) / (old_max - old_min)
+    x += new_min
+
+    if clamp:
+        x = x.clamp(new_min, new_max)
+    
+    return x
+
+def get_time_embedding(timestep):
+    # (160, )
+    freqs = torch.pow(10000, -torch.arange(start=0, end=160, dtype=torch.float32) / 160)
+    # (1, 160)
+    x = torch.tensor([timestep], dtype=torch.float32)[:, None] * freqs[None]
+    # (1, 320)
+    return torch.cat([torch.cos(x), torch.sin(x)])
+
+
