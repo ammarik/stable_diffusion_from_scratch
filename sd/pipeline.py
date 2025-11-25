@@ -14,7 +14,7 @@ LATENT_HEIGHT = 512//8
 
 def generate(
         prompt: str,
-        uncond_prompt: str,
+        uncond_prompt: str, # Negative prompt or empty string
         input_image=None,
         strength: int=0.8,
         do_cfg: bool=True,
@@ -175,6 +175,6 @@ def get_time_embedding(timestep):
     # (1, 160)
     x = torch.tensor([timestep], dtype=torch.float32)[:, None] * freqs[None]
     # (1, 320)
-    return torch.cat([torch.cos(x), torch.sin(x)])
+    return torch.cat([torch.cos(x), torch.sin(x)], dim=-1)
 
 
