@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from sd.attention import SelfAttention
+from attention import SelfAttention
 
 
 class VAE_AttentionBlock(nn.Module):
@@ -76,7 +76,7 @@ class VAE_Decoder(nn.Sequential):
         super().__init__(
             nn.Conv2d(4, 4, kernel_size=1, padding=0),
 
-            nn.Conv2d(4, 512, kernel_size=1, padding=3),
+            nn.Conv2d(4, 512, kernel_size=3, padding=1),
             VAE_ResidualBlock(512, 512),
             VAE_AttentionBlock(512),
             VAE_ResidualBlock(512, 512),
@@ -102,7 +102,7 @@ class VAE_Decoder(nn.Sequential):
             nn.Upsample(scale_factor=2),
 
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            VAE_ResidualBlock(512, 128),
+            VAE_ResidualBlock(256, 128),
             VAE_ResidualBlock(128, 128),
             VAE_ResidualBlock(128, 128),
 

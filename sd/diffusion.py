@@ -209,25 +209,44 @@ class UNET(nn.Module):
             SwitchSequential(UNETResidualBlock(1920, 1280), UNETAttentionBlock(8, 160), Upsample(1280)),
             SwitchSequential(UNETResidualBlock(1920, 640), UNETAttentionBlock(8, 80)),
             SwitchSequential(UNETResidualBlock(1280, 640), UNETAttentionBlock(8, 80)),
-            SwitchSequential(UNETResidualBlock(640, 640), UNETAttentionBlock(8, 80), Upsample(640)),
+            SwitchSequential(UNETResidualBlock(960, 640), UNETAttentionBlock(8, 80), Upsample(640)),
             SwitchSequential(UNETResidualBlock(960, 320), UNETAttentionBlock(8, 40)),
-            SwitchSequential(UNETResidualBlock(640, 320), UNETAttentionBlock(8, 80)),
+            SwitchSequential(UNETResidualBlock(640, 320), UNETAttentionBlock(8, 40)),
             SwitchSequential(UNETResidualBlock(640, 320), UNETAttentionBlock(8, 40)),
         ])
+    
+    def forward(self, x, context, time):
+        # x: (Batch_Size, 4, Height / 8, Width / 8)
+        # context: (Batch_Size, Seq_Len, Dim) 
+        # time: (1, 1280)
+
+        skip_connections = []
+        for layers in self.encoders:
+            x = layers(x, context, time)
+            skip_connections.append(x)
+
+        x = self.bottleneck(x, context, time)
+
+        for layers in self.decoders:
+            # Since we always concat with the skip connection of the encoder, the number of features increases before being sent to the decoder's layer
+            x = torch.cat((x, skip_connections.pop()), dim=1) 
+            x = layers(x, context, time)
+        
+        return x
 
 
 class UNETOutputLayer(nn.Module):
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
 
-        self.gorupnorm = nn.GroupNorm(32, in_channels)
+        self.groupnorm = nn.GroupNorm(32, in_channels)
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
 
     def forward(self, x):
         # We need to convert (batch, 320, height/8, width/8) to (batch, 4, height/8, width/8)
         # x: (batch, 320, height/8, width/8)
 
-        x = self.gorupnorm(x)
+        x = self.groupnorm(x)
         x = F.silu(x)
         x = self.conv(x)
         return x
@@ -236,7 +255,7 @@ class UNETOutputLayer(nn.Module):
 class Diffusion(nn.Module):
     # U-Net
     def __init__(self):
-        #super().__init__()
+        super().__init__()
         self.time_embedding = TimeEmbedding(320)
         self.unet = UNET()
         self.final = UNETOutputLayer(320, 4)
@@ -256,7 +275,3 @@ class Diffusion(nn.Module):
         output = self.final(output)
 
         return output
-
-
-
-

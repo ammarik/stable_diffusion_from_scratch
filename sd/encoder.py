@@ -6,7 +6,7 @@ from decoder import VAE_AttentionBlock, VAE_ResidualBlock
 
 class VAE_Encoder(nn.Sequential):
     def __init__(self):
-        super.__init__(
+        super().__init__(
             # (batch_size, channel, height, width) -> (batch_size, channel, height, width)
             nn.Conv2d(3, 128, kernel_size=3, padding=1), # 3 Input channels, 128 Output channels, height and width don't change because of kernel_size=3 and padding=1
 
@@ -43,7 +43,7 @@ class VAE_Encoder(nn.Sequential):
 
             VAE_ResidualBlock(512, 512),
 
-            VAE_AttentionBlock(512, 512),
+            VAE_AttentionBlock(512),
 
             VAE_ResidualBlock(512, 512),
 
