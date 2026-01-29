@@ -8,8 +8,8 @@ from tqdm import tqdm
 WIDTH = 512
 HEIGHT = 512
 
-LATENT_WIDTH = 512//8
-LATENT_HEIGHT = 512//8
+LATENT_WIDTH = WIDTH // 8
+LATENT_HEIGHT = HEIGHT // 8
 
 
 def generate(
@@ -34,15 +34,15 @@ def generate(
             raise ValueError('strength must be 0 < strength <= 1')
         
         if idle_device:
-            to_idle: lambda x: x.to(idle_device)
+            to_idle = lambda x: x.to(idle_device)
         else:
-            to_idle: lambda x: x
+            to_idle = lambda x: x
 
         generator = torch.Generator(device=device)
         if seed is None:
-            generate.seed()
+            generator.seed()
         else:
-            generate.manual_seed(seed)
+            generator.manual_seed(seed)
         
         clip = models['clip']
         clip = clip.to(device)
@@ -75,8 +75,8 @@ def generate(
         to_idle(clip)
 
         if sampler_name == 'ddpm':
-            sampler = DDPMsampler(generator)
-            sampler.set_inference_steps(n_inference_steps)
+            sampler = DDPMSampler(generator)
+            sampler.set_inference_timesteps(n_inference_steps)
         else:
             raise ValueError(f'Unknown sampler {sampler_name}')
         
@@ -119,7 +119,7 @@ def generate(
         timesteps = tqdm(sampler.timesteps)
         for i, timestep in enumerate(timesteps):
             # (1, 320)
-            time_embedding = get_time_embedding(timesteps).to(device)
+            time_embedding = get_time_embedding(timestep).to(device)
 
             # (batch_size, 4, latents_height, latents_width)
             model_input = latents
@@ -149,7 +149,7 @@ def generate(
         images = decoder(latents)
         to_idle(decoder)
 
-        images = rescale(images, (-1, -1), (0, 255), clamp=True)
+        images = rescale(images, (-1, 1), (0, 255), clamp=True)
         # (batch_size, channel, height, width) -> (batch_size, height, width, channel)
         images = images.permute(0, 2, 3, 1)
         images = images.to('cpu', torch.uint8).numpy()
