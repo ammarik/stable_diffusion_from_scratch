@@ -1,9 +1,9 @@
-from typing import Dict, Optional
 import numpy as np
 import torch
 
 from ddpm import DDPMSampler
 from tqdm import tqdm
+from typing import Dict, Optional
 
 WIDTH = 512
 HEIGHT = 512
@@ -32,12 +32,13 @@ def generate(
     with torch.no_grad():
         if not (0 < strength <= 1):
             raise ValueError('strength must be 0 < strength <= 1')
-        
+
         if idle_device:
             to_idle = lambda x: x.to(idle_device)
         else:
             to_idle = lambda x: x
 
+        # Initialize random number generator according to the seed specified
         generator = torch.Generator(device=device)
         if seed is None:
             generator.seed()
@@ -86,18 +87,19 @@ def generate(
             encoder = models['encoder']
             encoder.to(device)
 
-            input_image_tensor = input_image.resize((HEIGHT, WIDTH))
+            input_image_tensor = input_image.resize((WIDTH, HEIGHT))
+            # (height, width, channel)
             input_image_tensor = np.array(input_image_tensor)
             # (height, width, channel)
             input_image_tensor = torch.tensor(input_image_tensor, dtype=torch.float32)
             # Scale values to be in range (-1, 1)
             input_image_tensor = rescale(input_image_tensor, (0, 255), (-1, 1))
             # Add batch dimension: (height, width, channel) -> (batch_size, height, width, channel)
-            input_image_tensor = input_image_tensor.unqueeze(0)
+            input_image_tensor = input_image_tensor.unsqueeze(0)
             # (batch_size, height, width, channel) -> (batch_size, channel, height, width)
             input_image_tensor = input_image_tensor.permute(0, 3, 1, 2)
 
-            encoder_noise = torch.rand(latents_shape, generator=generator, device=device)
+            encoder_noise = torch.randn(latents_shape, generator=generator, device=device)
 
             # Run the image through the encoder of the VAE
             latents = encoder(input_image_tensor, encoder_noise) # (z in the diagram)
@@ -111,7 +113,7 @@ def generate(
             to_idle(encoder)
         else:
             # I we're doing text to image - start with a random noise
-            latents = torch.rand(latents_shape, generator=generator, device=device)
+            latents = torch.randn(latents_shape, generator=generator, device=device)
         
         diffusion = models["diffusion"]
         diffusion.to(device)
@@ -123,7 +125,7 @@ def generate(
 
             # (batch_size, 4, latents_height, latents_width)
             model_input = latents
- 
+
             if do_cfg:
                 # We need to send the same latent with the prompt and with the negative prompt.
                 # (batch_size, 4, height, width) -> (2 * batch_size, 4, height, width)
@@ -166,7 +168,6 @@ def rescale(x, old_range, new_range, clamp):
 
     if clamp:
         x = x.clamp(new_min, new_max)
-    
     return x
 
 def get_time_embedding(timestep):
@@ -176,5 +177,3 @@ def get_time_embedding(timestep):
     x = torch.tensor([timestep], dtype=torch.float32)[:, None] * freqs[None]
     # (1, 320)
     return torch.cat([torch.cos(x), torch.sin(x)], dim=-1)
-
-
