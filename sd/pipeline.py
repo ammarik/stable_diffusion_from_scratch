@@ -91,7 +91,7 @@ def generate(
             # (height, width, channel)
             input_image_tensor = np.array(input_image_tensor)
             # (height, width, channel)
-            input_image_tensor = torch.tensor(input_image_tensor, dtype=torch.float32)
+            input_image_tensor = torch.tensor(input_image_tensor, dtype=torch.float32, device=device)
             # Scale values to be in range (-1, 1)
             input_image_tensor = rescale(input_image_tensor, (0, 255), (-1, 1))
             # Add batch dimension: (height, width, channel) -> (batch_size, height, width, channel)
@@ -158,7 +158,7 @@ def generate(
 
         return images[0]
 
-def rescale(x, old_range, new_range, clamp):
+def rescale(x, old_range, new_range, clamp=False):
     old_min, old_max = old_range
     new_min, new_max = new_range
 
